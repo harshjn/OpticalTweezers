@@ -1,2 +1,2 @@
 # OpticalTweezers
-Projects at the micro scale
+The codes work in numpy python and store data in the npz format. 
