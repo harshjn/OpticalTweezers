@@ -1,58 +1,50 @@
 %% https://github.com/harshjn/OpticalTweezers/
 
-addOpen='F:\Data\';    %Path of video file
-addSave='F:\Analysis\';
 
-filenames=['0.6particle2'];   % 
-TIMES=[0,528];  %Starting and Ending time intervals
-
-%%
+clear all
+close all
+addOpen='Y:\smita\optical tweezer expts\2um-circle\';    %Path of video file
+addSave='Y:\smita\optical tweezer expts\Analysis\';
+filenames=['4'];   % 
 load('bg.mat')  % Background generated via getBG.m
-bg=bg12;
-A1=readFrame(v);
-bg1 = A1(:,157:312,:);
 %%
-savefile=1;
-
-
-for i=1:1:size(filenames,1)
-filename=filenames(i,:);
+filename='4';
 v=VideoReader(strcat(addOpen,filename,'.avi'));
-Fs=v.FrameRate; 
+Fs=v.FrameRate;  
 
 %%
-j=i;  % Select your interested time interval from TIMES
-startTime=TIMES(j,1);
-endTime=TIMES(j,2);
-
+startTime=0;
+endTime=222;
 len=round((endTime-startTime)*Fs)+1;
 cents=zeros(len,2);
 rads=zeros(len,1);
 time=zeros(len,1);
 v.CurrentTime=startTime;
 %%
-k=1;
+k=2;
 l=zeros(length(time),1);
+v.CurrentTime = 1
+
 %%
 
 % while(v.hasFrame)
 while(v.CurrentTime<endTime)
-    
-    A=readFrame(v);
+    A_=readFrame(v);
+    A=A_(461:761,589:892);
 %     A=A-bg./2;
 %     A=rgb2gray(A);
-    A=A-bg;
-    A=rgb2gray(A);
-
-    A=imadjust(A);
-    A=~A;
+    A2=A-bg;
+%     A=rgb2gray(A);
+    A3=imadjust(A2);
+%     A3=~A3;
+%     imshow(A3)
 
 %
 %     A=im2bw(A,0);
     
     
     try
-        [centers, radii] = imfindcircles(A,[13 19],'ObjectPolarity','bright','Sensitivity',0.93);
+        [centers, radii] = imfindcircles(A3,[13 19],'ObjectPolarity','bright','Sensitivity',0.95)
         cents(k,1)=centers(1);
         cents(k,2)=centers(2);
         if mod(k,100)==0 
@@ -78,134 +70,11 @@ while(v.CurrentTime<endTime)
 end
 l2=find(l);
 
-%% Removing the errors by iterating over errors with varying sensitivities or other parameters
-
-% m=[];
-% for p=1:length(l2)
-%     k=l2(p);
-%     v.CurrentTime=time(k-1);
-%     A=readFrame(v);
-%     A=imadjust(A);
-% 
-% %     A=rgb2gray(A);
-% %     A=A-bg;
-% %     A=A(337:737,478:887); %Location of the circular trap
-% 
-% %     A=A-bg;
-% 
-% %     A=im2bw(A,0);
-%     
-%     try
-% %         [centers, radii] = imfindcircles(A,[14 25],'ObjectPolarity','dark','Sensitivity',0.92);
-%         cents(k,1)=centers(1);
-%         cents(k,2)=centers(2);
-%         rads(k)=radii;
-% %         sprintf('%d',k)
-%     catch causeexception
-%         m(end+1)=k;
-%         sprintf('%d',k)
-%         cents(k,1:2)=cents(k-1,1:2);
-%         rads(k)=rads(k-1);
-%     end
-% end
-% l2=m;
-%%
-cents=cents(1:end-1,:);
-
-%% Angular plot
-%Finding Centers from scatter Plot
-% hold on
-% scatter(CenterX,CenterY)
-% hold off
-
-
-CenterX=163.5;
-CenterY=130.82;
-[Angles,rhos]=cart2pol((cents(:,1)-CenterX),(cents(:,2)-CenterY));
-% thetas=Angles(rhos<200);
-thetas=Angles;
-
-    
-%% histogram of angular position
-fig1=figure();
-HistBW=0.01;
-ThetaHist=histogram(thetas,'binWidth',HistBW);
-
-ProbValues=ThetaHist.Values./sum(ThetaHist.Values);
-bar(ThetaHist.BinEdges(1:end-1),ProbValues);
-
-titl=strcat('histogram of angle distribution',filename);
-title(titl)
-xlabel('angle')
-ylabel('Probability')
-set(gca, 'YScale', 'log')
-
-if savefile==1
-    saveas(fig1,strcat(addSave,titl,'.fig'))
-
-    close(fig1)
-end
-
-%% plot of the unwrapped angle
-fig2=figure();
-
-theta=unwrap(thetas);
-plot(theta)
-titl=strcat('AngleEvolution',filename);
-title(titl);
-xlabel('angle')
-ylabel('Probability')
-if savefile==1
-    saveas(fig2,strcat(addSave,titl,'.png'))
-
-    close(fig2)
-end
-%% Plot LDF
-figure();
-HistBW=0.01;
-
-ThetaHist=histogram(thetas,'binWidth',HistBW);
-ProbX=ThetaHist.BinEdges(1:end-1);
-
-ProbY=-log(ThetaHist.Values./sum(ThetaHist.Values));
-bar(ProbX,ProbY)
-
-
-%% Where's a particular angle?
-scatter(cents(:,1),cents(:,2),'.')
-hold on
-
 
 %%
-a=find((theta<-0*pi) & (theta>-50*pi));
-startT=min(a)
-endT=max(a)
-figure();
-scatter(cents(startT:endT,1),cents(startT:endT,2),'.')
-
-theta2=theta(startT:endT);
-fig2=figure();
-HistBW=0.01;
-ThetaHist=histogram(theta2,'binWidth',HistBW);
-
-titl=strcat('histogram of angle distribution',filename);
-title(titl)
-xlabel('angle')
-ylabel('Probability')
-set(gca, 'YScale', 'log')
-
-if savefile==1
-    saveas(fig1,strcat(addSave,titl,'.png'))
-
-    close(fig1)
-end
 
 
-
-%% Save the relevant angle
-if savefile==1    
-    savefilename=strcat(addSave,'data',filename,'.mat');
-    save(savefilename,'theta','cents','rads','CenterX','CenterY','thetas','filename','l2','startTime','endTime','Fs')
-end
-
+for i = 1:3000
+viscircles(cents(i,:),rads(i))
+pause(0.01)
 end
