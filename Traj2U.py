@@ -1,99 +1,130 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Oct  9 06:09:12 2021
-
-@author: Tifr Anit 2
-"""
-
-# -*- coding: utf-8 -*-
-""" 
-Created on Tue Mar  6 10:33:02 2018
-
-Algorithm to Calculate U(theta) given the trajectory
-
-@author: Admin
-"""
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+# plt.style.use('ggplot')
+# import sympy as sp
+import math
+import time
+import sympy as sp
+import collections
+th=sp.symbols('th');
 #import timeit
 pi=np.pi;
-dtheta=0.0001;
-phi=np.arange(0,2*pi,dtheta);
-import LoadTraj as LT
+# filename = '3.5e-14time0.005N1n1000000T300.npy'
+# filename = '4.1e-14time0.1N200n100000T300.npy'
+filename = '4.1e-14time0.01N200n100000T300.npy'
+def LoadData(filename):
+    t=np.load(filename,allow_pickle=True)
+    tDict = t.item()
+    MyTuple = collections.namedtuple('MyTuple', tDict)
+    t_data = MyTuple(**tDict)
+    dt = t_data.dt;
+    periodR=t_data.periodR;
+    return [t_data, periodR, dt]
 
-filename = '1/'+F[11]
-[t_data, periodX, dt]=LT.LoadData(filename);
 
-
+[t_data, periodX, dt]=LoadData(filename);
+#%%
 #%
-a=2e-6 # Micrometers Size of particle
-r=10e-6 #Radius of the outer circle
-eta=8.9e-4 #kg m^{-1}s^{-1} Dynamic Viscosity of water
+SizeFactor = 10
+nums=t_data.nums # Simulation steps
+dt = t_data.dt # Delta t of the simulation (Could be variable)
+nump=t_data.nump       # number of particles
+F0 = SizeFactor*3.5e-15# Drive force
+T=300         #T #Kelvin is 25degreeCelsius
+eta=8.9e-4    #eta  #kg m^{-1}s^{-1} Dynamic Viscosity of water
+pi=np.pi;    
+a=2e-6        # Micrometers Size of particle
+r=10e-6        #Radius of the outer circle
+periodR = 2*pi*r;
 k_b=1.38e-23
-T=303 #Kelvin is 25degreeCelsius
-gamma=3*6*pi*eta*a
-Eps=2*gamma*k_b*T
-dt = t_data.dt
+zeta=3*6*pi*eta*a  #A factor 3 is needed to account for the plate interaction
 m=4.0*pi/3*a**3*1100 #density is 1100kg/m^3
+kBT = k_b*T;
 #%
 #We calculate V_p as, the time it takes to cover a circle of radius 30 um in 1 second
-V_p=188e-6; #micrometers per second
-f=gamma*a*V_p
-#%
+V_p=20-6; #micrometers per second
+# Initial Conditions: Potential well
+amp = 10*k_b*T
+Eps=2*zeta*k_b*T
+std  =  np.sqrt(2*kBT*zeta*dt) # calculate std for \Delta W
+#%%
+#We calculate V_p as, the time it takes to cover a circle of radius 30 um in 1 second
 import scipy.io as sio
-Xs=np.ravel(t_data.Xs[1:2000])
+Rs=np.ravel(t_data.Rs[:,0,0])
 
-NTraj=5
+#plt.plot(Rs)
 
-plt.plot(Xs)
+phaseR = np.ravel(Rs,'F')/periodR*2*pi
+plt.plot(phaseR)
+# phaseR=phaseR-pi
 #%%
-Xs_ = np.mod(Xs/periodX,1)
-plt.plot(Xs_)
+phaseR = (phaseR) % (2 * np.pi)
+plt.plot(phaseR)
 #%%
-
-plt.hist(Xs_,bins=100);
+plt.plot(dt*np.arange(1000,2000),phaseR[1000:2000])
+minX=0.6*2*pi;maxX=minX+2*pi/SizeFactor;
+strtX=minX-(maxX-minX);
+# plt.hlines(minX,0,2000,'r')   #Minima of potential well
+# plt.hlines(maxX,0,2000,'r')   #Maxima of potential well
+# plt.hlines(strtX,0,2000,'r')  #approx well start
+plt.xlabel('time (s)')
 #%%
-NBins=39; # This number is better if less probably
-meanXDot=np.zeros(NBins);
+plt.hist(phaseR,bins=100);
+#%%
+NBins=100; # This number is better if less probably
+meanThDot=np.zeros(NBins);
+ThMin=np.min(phaseR)
+ThRange=np.arange(0,2*pi,2*pi/NBins)
+ThRange = np.concatenate((ThRange,[2*pi]))
+diff_phaseR=np.diff(phaseR)
 
-XMin=np.min(Xs_)
-XRange=np.arange(0,1,1/NBins)
-XRange = np.concatenate((XRange,[1.0]))
 for i in range(NBins):
-    X_=Xs_[Xs_>=XRange[i]];
-    X_=X_[X_<XRange[i+1]]
-    if(len(X_)>0):
+    Th_=phaseR[phaseR>=ThRange[i]];
+    Th_=Th_[Th_<ThRange[i+1]]
+    
+    if(len(Th_)>0):
+        Mat1=phaseR>ThRange[i];
+        Mat2=phaseR<ThRange[i+1];
+        a=np.where(Mat1&Mat2)[0]
+        b=np.diff(a)==1        
+        inds=np.where(~b)[0]
+        a2= np.delete(a,inds)
+        a2=np.delete(a2,-1)
+        diff_Th=diff_phaseR[a2]
 #        meanThDot[i]=(theta_[len(theta_)-1]-theta_[0])/len(theta_)
-        diff_X=np.diff(X_)
-        diff_X=diff_X[diff_X>-0.5/NBins]
-        meanXDot[i]=(np.mean(diff_X)/dt)
-        
-plt.plot(meanXDot)
+        # diff_Th=diff_Th[diff_Th>-0.5/NBins]
+        meanThDot[i]=(np.mean(diff_Th)/dt)      
+        print(i, len(diff_Th))
+
+plt.plot(meanThDot)
+plt.hlines(0,0,NBins)
 #%%
-nn=38
+nn=NBins-1
 F0=t_data.F0
 Coef_f=t_data.F0*np.ones(nn);
-xMat = np.arange(0,1,1/nn)
-xMat = np.concatenate((xMat,[1.0]))
-
+ThMat = np.arange(0,2*pi,2*pi/nn)
+ThMat = np.concatenate((ThMat,[2*pi]))
+print(len(ThMat),len(meanThDot))
 import scipy.interpolate
+ThDot_interp = scipy.interpolate.interp1d(ThMat,meanThDot)
 
-xDot_interp = scipy.interpolate.interp1d(xMat,meanXDot)
-
-
-nn=1000
+#%%
+nn=NBins
+F0=t_data.F0
 Coef_f=t_data.F0*np.ones(nn);
-xMat = np.arange(0,1,1/nn)
-xMat = np.concatenate((xMat,[1.0]))
+ThMat = np.arange(0,2*pi,2*pi/nn)
+ThMat = np.concatenate((ThMat,[2*pi]))
+ThDotMat=np.multiply(-1*zeta*r,ThDot_interp(ThMat))
+ThDot_int=[np.sum(ThDotMat[0:i])*1/nn for i in range(nn)]
 
-xDotMat=np.multiply(-1*gamma*r,xDot_interp(xMat))
-xDot_int=[np.sum(xDotMat[0:i])*1/nn for i in range(nn)]
+#%% calculate f back
 
-nn=999
-Coef_f=t_data.F0*np.ones(nn);
-xMat = np.arange(0,1,1/nn)
-xMat = np.concatenate((xMat,[1.0]))
 
-plt.plot( xMat,np.multiply(xDot_int,6.3) + (F0)*xMat+1e-13 ) 
+#%%
+ThMat = np.arange(0,2*pi,2*pi/nn)
 
-plt.plot(np.arange(0,1,1/100),t_data.UfuncMat/r/10)
+plt.plot( ThMat[:],(np.multiply(ThDot_int,6.28)  +0.97*(F0)*ThMat[:]+200e-18 )*1*r) 
+
+plt.plot(np.arange(0,2*pi,2*pi/1000),t_data.UfuncMat)
