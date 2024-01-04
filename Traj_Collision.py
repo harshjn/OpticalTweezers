@@ -110,7 +110,7 @@ for i in range(nums): # repeat the following operations from i=0 to nums-1
         
     # if math.isnan(F):
     #     F=F0*np.ones([1,nump])
-    R = R + F*dt/zeta +W/zeta + F_Collision/zeta # update R & V 
+    R = R + F*dt/zeta +W/zeta + F_Collision*dt/zeta # update R & V 
 
     Rs[i,:,:]=R # accumulate particle positions at each step in an array Rs
     #Ws[i,:,:]=W # accumulate random forces at each step in an array Ws
