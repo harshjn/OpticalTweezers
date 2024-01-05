@@ -26,10 +26,7 @@ import matplotlib as mpl
 import math
 import time
 #%%
-nums=int(1e6) # Simulation steps
-dt =0.0001     # Delta t of the simulation (Could be variable)
-nump=5     # number of particles
-F0 = 450e-15# Drive force
+F0 = 400e-15# Drive force
 T=300         #T #Kelvin is 25degreeCelsius
 eta=8.9e-4    #eta  #kg m^{-1}s^{-1} Dynamic Viscosity of water
 pi=np.pi;    
@@ -68,6 +65,10 @@ Uforce = interp1d(rMat_,Uforce_)
 axs[2].plot(rMat/periodR*2*pi,Ufunc_-F0*rMat)
 # We calculate deltaU and the minima position
 #%% Calculation
+nums=int(1e5) # Simulation steps
+dt =0.001     # Delta t of the simulation (Could be variable)
+nump=4     # number of particles
+
 dim  = 1   # system dimension (x,y,z)
 std  =  np.sqrt(2*kBT*zeta*dt) # calculate std for \Delta W
 # np.random.seed(7) # initialize random number generator with a seed=0
@@ -103,36 +104,35 @@ for i in range(nums): # repeat the following operations from i=0 to nums-1
     F+=W/dt; # Added random noise force to trap force
 
 
-    F_Collision=np.zeros([nump,dim])
     
+    # Now we let the force transmit like in Newton's cradle
+    F_new=F;
+    for kk in range(nump):  # We have to let it transmit through the chain of nump particles
+        for ii in range(nump): #If it can't jump, it simply transmits force
     
-    # Now we let the force transmit
-    
-    for ii in range(nump):
+            if(abs(R[ii][0]%periodR-R[ii-1][0]%periodR)<1.05*a):
 
-        if(abs(R[ii][0]%periodR-R[ii-1][0]%periodR-a)<F[ii-1][0]*dt/zeta):
-                F[ii-1][0]=0
-                F[ii][0] += F[ii-1][0]                
-                
-        elif(abs(R[ii-1][0]%periodR-R[ii][0]%periodR-a)*-1>F[ii][0]*dt/zeta):
-                F[ii][0]=0;
-                F[ii-1][0]-=F[ii][0]
-        
-        if(abs(R[ii][0]%periodR-R[ii-1][0]%periodR-a)<F[ii-1][0]*dt/zeta):
-                F[ii-1][0]=0
-                F[ii][0] += F[ii-1][0]                
-                
-        elif(abs(R[ii-1][0]%periodR-R[ii][0]%periodR-a)*-1>F[ii][0]*dt/zeta):
-                F[ii][0]=0;
-                F[ii-1][0]-=F[ii][0]
-                
-        if(abs(R[ii][0]%periodR-R[ii-1][0]%periodR-a)<F[ii-1][0]*dt/zeta):
-                F[ii-1][0]=0
-                F[ii][0] += F[ii-1][0]                
-                
-        elif(abs(R[ii-1][0]%periodR-R[ii][0]%periodR-a)*-1>F[ii][0]*dt/zeta):
-                F[ii][0]=0;
-                F[ii-1][0]-=F[ii][0]
+                if(R[ii][0]%periodR>R[ii-1][0]%periodR):
+                    F[ii][0]=+2*F0
+                    F[ii-1][0]=-2*F0
+                else:
+                    F[ii-1][0]=-2*F0
+                    F[ii][0]=+2*F0
+                       
+    
+            if(R[ii][0]%periodR-R[ii-1][0]%periodR>0 and abs(R[ii][0]%periodR-R[ii-1][0]%periodR-2*a)<(F[ii-1][0]-F[ii][0])*dt/zeta):
+                    F_new[ii-1][0]=0
+                    F_new[ii][0] += F[ii-1][0]    
+                    
+            if(R[ii][0]%periodR-R[ii-1][0]%periodR>0 and F[ii][0]<0):
+                if F[ii-1][0]<0 and abs(F[ii][0]-F[ii-1][0])*dt/zeta>2*a :
+                    F_new[ii][0]=0
+                    F_new[ii-1][0] += F[ii][0]    
+                    
+                elif F[ii-1]>0 and abs(F[ii][0]+F[ii-1][0])*dt/zeta>2*a :
+                    F_new[ii][0]=0
+                    F_new[ii-1][0] += F[ii][0]                        
+        F=F_new;     
         
     # if math.isnan(F):
     # F=F0*np.ones([1,nump])
@@ -180,4 +180,4 @@ ax.set_title('Circles at Points on a Straight Line')
 # Show the plot
 plt.show()
 #%%
-plt.plot(Fs[1:10000,4,:]);plt.plot(Fs[1:10000,3,:]);plt.plot(Fs[1:10000,1,:])
+plt.plot(Fs[1:400000,4,:]);plt.plot(Fs[1:4000000,3,:]);plt.plot(Fs[1:4000000,1,:])
