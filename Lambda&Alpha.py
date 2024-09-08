@@ -94,7 +94,7 @@ Rs = np.zeros([nums,nump,dim]) # array to store positions at all steps
 
 timeMat  = np.zeros([nums]) # an array to store time at all steps
 
-Lambda = F0*periodR/kBT*4*pi;
+Lambda = F0*periodR/kBT;
 print(Lambda)
 print(Lambda/Alpha)
 L = periodR;
