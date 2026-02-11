@@ -128,3 +128,4 @@ ThMat = np.arange(0,2*pi,2*pi/nn)
 plt.plot( ThMat[:],(np.multiply(ThDot_int,6.28)  +0.97*(F0)*ThMat[:]+200e-18 )*1*r) 
 
 plt.plot(np.arange(0,2*pi,2*pi/1000),t_data.UfuncMat)
+
