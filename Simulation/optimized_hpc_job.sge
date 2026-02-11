@@ -1,0 +1,134 @@
+#!/bin/bash -l
+#$ -S /bin/bash
+#$ -cwd
+#$ -V
+
+## Job name
+#$ -N n_vs_FcF_optimized
+
+## Request email when job ends or aborts
+#$ -m ea
+#$ -M harshj@ncbs.res.in
+
+## Set queue - use long queue since we'll run longer
+#$ -q medium.q
+
+## Memory per core (4GB per core, you have 32 cores = 128GB total)
+#$ -l h_vmem=4G
+
+## Request 32 cores to match your hardware
+#$ -pe orte-rr 32
+
+## Output and error files
+#$ -o optimized_simulation_$JOB_ID.out
+#$ -e optimized_simulation_$JOB_ID.err
+
+echo "=========================================="
+echo "JOB: Optimized n vs Fc/F Simulations"
+echo "=========================================="
+echo "Start time: " `date`
+echo "Host: " `hostname`
+echo "Job ID: " $JOB_ID
+echo "Cores available: " $NSLOTS
+echo "Memory per core: 4GB"
+echo "Total memory: $((NSLOTS * 4))GB"
+echo "=========================================="
+
+## SIMULATION PARAMETERS - EDIT THESE AS NEEDED
+export SIMULATION_ALPHA=0.075          # Potential width parameter
+export SIMULATION_DT=1e-3             # Time step
+export SIMULATION_D=1000              # Potential depth
+export SIMULATION_A=2e-6              # Particle size
+export SIMULATION_NUMS=1e6            # Number of simulation steps
+export N_MIN=1                        # Minimum number of particles
+export N_MAX=5                       # Maximum number of particles
+
+## OPTIMIZATION PARAMETERS
+export MAX_PARALLEL_F=32              # Number of F/Fc values to run in parallel
+export CORES_PER_SIMULATION=1         # Cores per individual simulation
+export MEMORY_PER_SIM=4               # GB per simulation
+
+echo "Simulation parameters:"
+echo "  ALPHA = $SIMULATION_ALPHA"
+echo "  DT = $SIMULATION_DT"
+echo "  D = $SIMULATION_D"
+echo "  A = $SIMULATION_A"
+echo "  NUMS = $SIMULATION_NUMS"
+echo "  N range = $N_MIN to $N_MAX"
+echo ""
+echo "Optimization parameters:"
+echo "  Parallel F/Fc processes = $MAX_PARALLEL_F"
+echo "  Cores per simulation = $CORES_PER_SIMULATION"
+echo "  Memory per simulation = ${MEMORY_PER_SIM}GB"
+echo "  Total concurrent simulations = $MAX_PARALLEL_F"
+echo "  Total core usage = $((MAX_PARALLEL_F * CORES_PER_SIMULATION))"
+echo "=========================================="
+
+## Load Python module
+module load opt-python
+
+## Set up Python environment
+export LD_LIBRARY_PATH=/opt/python/lib:$LD_LIBRARY_PATH
+export PYTHONPATH=/opt/python/lib/python3.6/site-packages:$PYTHONPATH
+export PATH=$HOME/.local/bin:$PATH
+export PYTHONPATH=$HOME/.local/lib/python3.6/site-packages:$PYTHONPATH
+
+## Create output directory
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+OUTPUT_DIR="optimized_results_$TIMESTAMP"
+mkdir -p $OUTPUT_DIR
+echo "Output directory: $OUTPUT_DIR"
+echo ""
+
+## Strategy: Process all (n, F/Fc) combinations with optimal parallelization
+echo "Starting optimized simulation strategy:"
+echo "- 19 F/Fc values processed in parallel"
+echo "- Results saved immediately as they complete"
+echo "- Progress tracked in real-time"
+echo ""
+
+## Run the optimized simulation
+echo "Launching optimized simulation manager..."
+/opt/python/bin/python3.6 optimized_simulation_manager.py $OUTPUT_DIR
+
+exit_code=$?
+
+echo ""
+echo "=========================================="
+if [ $exit_code -eq 0 ]; then
+    echo "SIMULATION COMPLETED SUCCESSFULLY"
+    echo "End time: " `date`
+    
+    echo ""
+    echo "Final results summary:"
+    echo "Output directory: $OUTPUT_DIR"
+    echo ""
+    
+    # Count completed simulations
+    total_files=$(find $OUTPUT_DIR -name "result_n*.csv" | wc -l)
+    echo "Total result files: $total_files"
+    
+    # Show some sample files
+    echo ""
+    echo "Sample result files:"
+    ls -lh $OUTPUT_DIR/result_n*_F*.csv 2>/dev/null | head -5
+    echo "..."
+    ls -lh $OUTPUT_DIR/result_n*_F*.csv 2>/dev/null | tail -5
+    
+    echo ""
+    echo "Combined summary files:"
+    ls -lh $OUTPUT_DIR/combined_*.csv $OUTPUT_DIR/analysis_*.json 2>/dev/null
+    
+    echo ""
+    echo "To analyze results, run:"
+    echo "  python analyze_optimized_results.py $OUTPUT_DIR"
+    
+else
+    echo "SIMULATION FAILED with exit code $exit_code"
+    echo "Check error logs for details."
+    exit 1
+fi
+
+echo "=========================================="
+
+exit 0
