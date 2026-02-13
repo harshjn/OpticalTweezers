@@ -8,11 +8,6 @@ Created on Fri Feb 13 12:59:29 2026
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Optimized simulation manager for 32-core system with trajectory saving
-Processes 19 F/Fc values in parallel, cycling through n values efficiently
-Now saves particle trajectories as separate CSV files
-"""
 
 import numpy as np
 import multiprocessing as mp
