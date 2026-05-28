@@ -102,13 +102,23 @@ def CalculateJ_DC_with_trajectories(F0, d, N, a, alpha, dt, nums, save_trajector
     
     # Collision forces
     def hard_sphere_force(r_ij, a):
-        cutoff = 2.10*a
-        k_rep = F0*2
-        if abs(r_ij) < cutoff:
-            direction = np.sign(r_ij)
-            magnitude = k_rep
+        # r_ij = x_i - x_j (signed scalar, 1D)
+        sigma    = 2.0 * a                 # contact distance
+        r_cutoff = 2**(1/6) * sigma        # WCA cutoff (~1.122 * 2a)
+        epsilon  = 10 * F0 *a / 12.0           # F at contact ~ F0
+        F_max    = 100.0 * F0              # safety cap, 100x typical force
+        
+        r         = abs(r_ij)
+        direction = np.sign(r_ij)
+        
+        if r < r_cutoff and r > 1e-10:
+            sr6       = (sigma / r)**6
+            sr12      = sr6**2
+            magnitude = (4 * epsilon / r) * (12 * sr12 - 6 * sr6)
+            magnitude = min(magnitude, F_max)   # safety cap
             return magnitude * direction
-        return 0
+        
+        return 0.0
     
     def hard_sphere_force_multi(positions, a, periodR):
         nump = len(positions)
